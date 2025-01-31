@@ -44,7 +44,8 @@ Optimal choice: Take More Space (saves $10,815.00)
 ## EVPI Analysis:
 
 State-by-state comparison:
-State | More Space EV | No More EV | Best EV
+
+|State | More Space EV | No More EV | Best EV|
 --------------------------------------------------
     1 | $       0.00 | $212,520.00 | $   0.00
     2 | $  84,000.00 | $     0.00 | $   0.00
