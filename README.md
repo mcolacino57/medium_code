@@ -10,6 +10,7 @@ of the prompt, and some manual debugging, a working Python program was produced.
 ## Decision Analysis:
 
 Choice: Take More Space (Vertex 2)
+
 Terminal | Probability | Cost ($) | Expected Value ($)
 --------------------------------------------------
       10 |      0.240 |      0.00 |             0.00
@@ -24,6 +25,7 @@ Terminal | Probability | Cost ($) | Expected Value ($)
 Total Expected Value for More Space: $416,500.00
 
 Choice: Take No More Space (Vertex 3)
+
 Terminal | Probability | Cost ($) | Expected Value ($)
 --------------------------------------------------
       19 |      0.240 | 885,500.00 |       212,520.00
