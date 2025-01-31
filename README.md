@@ -11,7 +11,7 @@ of the prompt, and some manual debugging, a working Python program was produced.
 
 Choice: Take More Space (Vertex 2)
 
-Terminal | Probability | Cost ($) | Expected Value ($)
+|Terminal | Probability | Cost ($) | Expected Value ($)|
 --------------------------------------------------
       10 |      0.240 |      0.00 |             0.00
       11 |      0.120 | 700,000.00 |        84,000.00
