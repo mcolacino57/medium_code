@@ -4,7 +4,9 @@
 language into Claude.ai, and prompting it to rewrite my code into Python. After a few revisions
 of the prompt, and some manual debugging, a working Python program was produced.
 
-- When this python program is run, it should produce the following output:
+- When this python program is run, it produces a png file of the decision tree.
+
+- It should also produce the following output:
 
 
 ## Decision Analysis:
