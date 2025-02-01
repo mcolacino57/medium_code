@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional, Set
+import graphviz
 
 @dataclass
 class Config:
@@ -17,9 +18,9 @@ config = Config()
 class DecisionTree:
     def __init__(self):
         self.g = nx.DiGraph()
-        self._setup_graph()
+        self.setup_graph()
         
-    def _setup_graph(self):
+    def setup_graph(self):
         edges = [
             (1,2), (1,3),
             (2,4), (2,5), (2,6),
@@ -106,66 +107,32 @@ class DecisionTree:
         return prob
 
     def calculate_cost(self, vertex: int) -> float:
-        """Calculate cost for a terminal vertex based on demand changes"""
         if vertex not in self.get_terminal_vertices():
             raise ValueError(f"Vertex {vertex} is not a terminal vertex")
             
         path = nx.shortest_path(self.g, 1, vertex)
         
-        # Get demand change from terminal vertex
         demand_delta = self.g.nodes[vertex]['weight']
-        
-        # Get market change from market vertex (second to last in path)
         market_vertex = path[-2]
         market_delta = self.g.nodes[market_vertex]['weight']
-        
-        # Get uptake from action vertex (first decision vertex)
         action_vertex = path[1]
         uptake = self.g.nodes[action_vertex]['weight']
         
-        # Calculate costs
         have = config.total_space * (1 + uptake)
         need = config.total_space * (1 + demand_delta)
         
         if have < need:
-            # Bandaid space needed
             bandaid_space = need - have
             cost = bandaid_space * config.contract_rent * (1 + market_delta) * (1 + config.premium)
         else:
-            # Too much space taken
             excess_space = have - need
             cost = excess_space * config.contract_rent
             
         return cost
 
-    def print_terminal_analysis(self):
-        """Print probabilities and costs for all terminal vertices"""
-        terminal_vertices = sorted(self.get_terminal_vertices())
-        results = []
-        
-        print("\nTerminal Vertex Analysis:")
-        print("Vertex | Probability | Cost ($) | Expected Value ($)")
-        print("-" * 50)
-        
-        total_ev = 0
-        for v in terminal_vertices:
-            prob = self.get_vertex_probability(v)
-            cost = self.calculate_cost(v)
-            ev = prob * cost
-            total_ev += ev
-            
-            print(f"{v:6d} | {prob:10.3f} | {cost:9,.2f} | {ev:16,.2f}")
-            results.append((v, prob, cost, ev))
-        
-        print("-" * 50)
-        print(f"Total Expected Value: ${total_ev:,.2f}")
-        return results
-
     def analyze_decision_choices(self):
-        """Analyze expected values for both initial choices"""
         print("\nDecision Analysis:\n")
         
-        # Analyze "take more space" choice (vertex 2)
         more_terminals = self.get_terminal_vertices(config.more_vertex)
         more_ev = 0
         print("Choice: Take More Space (Vertex 2)")
@@ -179,7 +146,6 @@ class DecisionTree:
             print(f"{v:8d} | {prob:10.3f} | {cost:9,.2f} | {ev:16,.2f}")
         print(f"Total Expected Value for More Space: ${more_ev:,.2f}\n")
 
-        # Analyze "take no more space" choice (vertex 3)
         no_more_terminals = self.get_terminal_vertices(config.no_more_vertex)
         no_more_ev = 0
         print("Choice: Take No More Space (Vertex 3)")
@@ -193,7 +159,6 @@ class DecisionTree:
             print(f"{v:8d} | {prob:10.3f} | {cost:9,.2f} | {ev:16,.2f}")
         print(f"Total Expected Value for No More Space: ${no_more_ev:,.2f}\n")
 
-        # Show optimal choice
         if more_ev < no_more_ev:
             print(f"Optimal choice: Take More Space (saves ${no_more_ev - more_ev:,.2f})")
         else:
@@ -202,47 +167,80 @@ class DecisionTree:
         return more_ev, no_more_ev
 
     def calculate_evpi(self):
-        """Calculate Expected Value of Perfect Information"""
-        # Get EVs for each branch
+        more_ev, no_more_ev = self.analyze_decision_choices()
+        best_decision_ev = min(more_ev, no_more_ev)
+        
+        ev_perfect = 0
         more_vertices = sorted(self.get_terminal_vertices(config.more_vertex))
         no_more_vertices = sorted(self.get_terminal_vertices(config.no_more_vertex))
-        
-        # Get EV vectors for both choices
-        more_evs = []
-        no_more_evs = []
-        
-        for v in more_vertices:
-            prob = self.get_vertex_probability(v)
-            cost = self.calculate_cost(v)
-            more_evs.append(prob * cost)
-            
-        for v in no_more_vertices:
-            prob = self.get_vertex_probability(v)
-            cost = self.calculate_cost(v)
-            no_more_evs.append(prob * cost)
-        
-        # For each state of nature, take the minimum EV
-        best_evs = [min(m, n) for m, n in zip(more_evs, no_more_evs)]
-        ev_perfect = sum(best_evs)
-        
-        # Compare to best uninformed decision
-        best_decision_ev = min(sum(more_evs), sum(no_more_evs))
-        evpi = best_decision_ev - ev_perfect
         
         print("\nEVPI Analysis:")
         print("\nState-by-state comparison:")
         print("State | More Space EV | No More EV | Best EV")
         print("-" * 50)
-        for i, (m, n, b) in enumerate(zip(more_evs, no_more_evs, best_evs)):
-            print(f"{i+1:5d} | ${m:11,.2f} | ${n:9,.2f} | ${b:7,.2f}")
+        
+        for v_more, v_no_more in zip(more_vertices, no_more_vertices):
+            ev_more = self.get_vertex_probability(v_more) * self.calculate_cost(v_more)
+            ev_no_more = self.get_vertex_probability(v_no_more) * self.calculate_cost(v_no_more)
+            best_ev = min(ev_more, ev_no_more)
+            ev_perfect += best_ev
+            print(f"{v_more:5d} | ${ev_more:11,.2f} | ${ev_no_more:9,.2f} | ${best_ev:7,.2f}")
         
         print(f"\nBest decision EV without perfect information: ${best_decision_ev:,.2f}")
         print(f"Expected value with perfect information: ${ev_perfect:,.2f}")
+        evpi = best_decision_ev - ev_perfect
         print(f"Value of perfect information: ${evpi:,.2f}")
         
         return evpi
+
+    def visualize(self, filename='decision_tree'):
+        dot = graphviz.Digraph(comment='Space Decision Tree')
+        dot.attr(rankdir='LR')  # Left to right layout
+        
+        # Node styles
+        dot.attr('node', shape='box')
+        
+        # Add nodes with labels and weights
+        for node in self.g.nodes():
+            label = self.g.nodes[node].get('label', '')
+            weight = self.g.nodes[node].get('weight', '')
+            
+            # Format node label
+            if node == 1:
+                node_label = 'Start'
+            elif label in ['Take +10%', 'Take +0%']:
+                node_label = f'{label}'
+            else:
+                node_label = f'Node {node}\n{label}\n{weight:+.0%}' if weight != '' else f'Node {node}\n{label}'
+            
+            # Different styles for different node types
+            if node == 1:
+                dot.node(str(node), node_label, shape='circle')
+            elif node in [2, 3]:  # Decision nodes
+                dot.node(str(node), node_label, shape='diamond')
+            elif self.g.out_degree(node) == 0:  # Terminal nodes
+                # Calculate cost for terminal nodes
+                cost = self.calculate_cost(node) if self.g.out_degree(node) == 0 else 0
+                prob = self.get_vertex_probability(node)
+                node_label += f'\nCost: ${cost:,.0f}\nProb: {prob:.3f}'
+                dot.node(str(node), node_label, shape='box')
+            else:
+                dot.node(str(node), node_label, shape='oval')
+
+        # Add edges with probabilities
+        for edge in self.g.edges():
+            prob = self.g[edge[0]][edge[1]].get('probability', '')
+            if prob != '':
+                dot.edge(str(edge[0]), str(edge[1]), label=f'{prob:.2f}')
+            else:
+                dot.edge(str(edge[0]), str(edge[1]))
+
+        # Save the visualization
+        dot.render(filename, view=True, format='png')
+        return dot
 
 if __name__ == "__main__":
     tree = DecisionTree()
     more_ev, no_more_ev = tree.analyze_decision_choices()
     evpi = tree.calculate_evpi()
+    tree.visualize()
